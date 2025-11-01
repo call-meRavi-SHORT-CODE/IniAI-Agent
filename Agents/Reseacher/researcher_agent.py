@@ -9,7 +9,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import StrOutputParser
 
 from Services.utils import retry_wrapper, validate_responses
-from src.browser.search import BingSearch
+from Services.web_search import DuckDuckGoSearch
 
 GOOGLE_API_KEY = "AIzaSyAnPL4zvdny1jVeaikGJZz4JDL_5q11aSA"
 
@@ -58,25 +58,57 @@ Guidelines:
 Any output that doesn’t match this exact JSON structure will be rejected.
 """
 
-
 class Researcher:
     def __init__(self, model_id: str = "gemini-2.0-flash"):
         """Initialize LangChain-based Researcher Agent."""
-        self.bing_search = BingSearch()
+      
+        self.search_engine = DuckDuckGoSearch()
 
-        # LangChain LLM setup
+       
         self.llm = ChatGoogleGenerativeAI(model=model_id, google_api_key=GOOGLE_API_KEY)
 
-        # Prompt template chain (replaces Jinja2)
+       
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", researcher_prompt),
         ])
 
-        # Parser for clean text output
         self.parser = StrOutputParser()
 
         # Chain definition (Prompt → LLM → Parser)
         self.chain = self.prompt | self.llm | self.parser
+
+    @validate_responses
+    def validate_response(self, response: str) -> dict | bool:
+        """Ensure response contains required fields."""
+        if "queries" not in response and "ask_user" not in response:
+            return False
+        return {
+            "queries": response["queries"],
+            "ask_user": response["ask_user"]
+        }
+
+    @retry_wrapper
+    def execute(self, step_by_step_plan: str, contextual_keywords: List[str], project_name: str) -> dict | bool:
+        """Run the research pipeline."""
+        contextual_keywords_str = ", ".join(map(lambda k: k.capitalize(), contextual_keywords))
+
+        response = self.chain.invoke({
+            "step_by_step_plan": step_by_step_plan,
+            "contextual_keywords": contextual_keywords_str
+        })
+
+        valid_response = self.validate_response(response)
+        return valid_response
+
+
+    def search_online(self, query: str) -> str:
+        """Perform a DuckDuckGo search and return the first result link."""
+        try:
+            self.search_engine.search(query)
+            return self.search_engine.get_first_link()
+        except Exception as e:
+            print(f"Search failed: {e}")
+            return None
 
     """"
     workflow of the researcher agent/validate --> to clean and make as dict
@@ -95,26 +127,3 @@ class Researcher:
 
     """
 
-    @validate_responses
-    def validate_response(self, response: str) -> dict | bool:
-        """Validate that response includes expected keys."""
-        if "queries" not in response and "ask_user" not in response:
-            return False
-        return {
-            "queries": response["queries"],
-            "ask_user": response["ask_user"]
-        }
-
-    @retry_wrapper
-    def execute(self, step_by_step_plan: str, contextual_keywords: List[str], project_name: str) -> dict | bool:
-        """Run the research chain with retry and validation logic."""
-        contextual_keywords_str = ", ".join(map(lambda k: k.capitalize(), contextual_keywords))
-
-        # Run the LangChain pipeline
-        response = self.chain.invoke({
-            "step_by_step_plan": step_by_step_plan,
-            "contextual_keywords": contextual_keywords_str
-        })
-
-        valid_response = self.validate_response(response)
-        return valid_response
