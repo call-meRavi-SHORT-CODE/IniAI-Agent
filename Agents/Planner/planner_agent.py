@@ -156,7 +156,7 @@ class PlannerAgent:
 
 
 
-"""
+
 # Run the agent directly
 if __name__ == "__main__":
     agent = PlannerAgent()
@@ -169,4 +169,3 @@ if __name__ == "__main__":
     parsed = agent.parse_response(response)
     print("\n Parsed Output:\n", parsed)
 
-"""
