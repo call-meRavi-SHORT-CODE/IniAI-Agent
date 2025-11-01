@@ -8,7 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import StrOutputParser
 
-from src.services.utils import retry_wrapper, validate_responses
+from Services.utils import retry_wrapper, validate_responses
 from src.browser.search import BingSearch
 
 GOOGLE_API_KEY = "AIzaSyAnPL4zvdny1jVeaikGJZz4JDL_5q11aSA"
