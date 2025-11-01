@@ -1,8 +1,13 @@
 import json
 import time
 import sys
+from pathlib import Path
 from typing import List
 from functools import wraps
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -127,3 +132,28 @@ class Researcher:
 
     """
 
+
+if __name__ == "__main__":
+    # Step-by-step plan for which you want queries generated
+    step_by_step_plan = """
+    1. Research the best ways to integrate Gemini API with LangChain.
+    2. Explore how to use DuckDuckGo search for custom agents.
+    3. Find methods to handle rate limits for API calls efficiently.
+    """
+
+    # Contextual keywords to guide query optimization
+    contextual_keywords = ["LangChain", "Gemini API", "DuckDuckGo", "Python", "Rate limiting"]
+
+    # Instantiate the Researcher agent
+    agent = Researcher(model_id="gemini-2.0-flash")
+
+    # Run the agent
+    response = agent.execute(
+        step_by_step_plan=step_by_step_plan,
+        contextual_keywords=contextual_keywords,
+        project_name="TestResearch"
+    )
+
+    # Print output
+    print("\n=== Researcher Agent Output ===")
+    print(response)
