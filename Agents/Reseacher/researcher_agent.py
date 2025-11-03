@@ -1,13 +1,8 @@
 import json
 import time
 import sys
-from pathlib import Path
 from typing import List
 from functools import wraps
-
-# Add project root to Python path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -62,93 +57,99 @@ Guidelines:
 
 Any output that doesn’t match this exact JSON structure will be rejected.
 """
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from typing import List
 
-class Researcher:
-    def __init__(self, model_id: str = "gemini-2.0-flash"):
-        """Initialize LangChain-based Researcher Agent."""
-      
-        self.search_engine = DuckDuckGoSearch()
-
-       
-        self.llm = ChatGoogleGenerativeAI(model=model_id, google_api_key=GOOGLE_API_KEY)
-
-       
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", researcher_prompt),
-        ])
-
-        self.parser = StrOutputParser()
-
-        # Chain definition (Prompt → LLM → Parser)
-        self.chain = self.prompt | self.llm | self.parser
-
-    @validate_responses
-    def validate_response(self, response: str) -> dict | bool:
-        """Ensure response contains required fields."""
-        if "queries" not in response and "ask_user" not in response:
-            return False
-        return {
-            "queries": response["queries"],
-            "ask_user": response["ask_user"]
-        }
-
-    @retry_wrapper
-    def execute(self, step_by_step_plan: str, contextual_keywords: List[str], project_name: str) -> dict | bool:
-        """Run the research pipeline."""
-        contextual_keywords_str = ", ".join(map(lambda k: k.capitalize(), contextual_keywords))
-
-        response = self.chain.invoke({
-            "step_by_step_plan": step_by_step_plan,
-            "contextual_keywords": contextual_keywords_str
-        })
-
-        valid_response = self.validate_response(response)
-        return valid_response
+from config import GOOGLE_API_KEY, researcher_prompt
 
 
-    def search_online(self, query: str) -> str:
-        """Perform a DuckDuckGo search and return the first result link."""
-        try:
-            self.search_engine.search(query)
-            return self.search_engine.get_first_link()
-        except Exception as e:
-            print(f"Search failed: {e}")
-            return None
+# Initialize all components globally
+search_engine = DuckDuckGoSearch()
+llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=GOOGLE_API_KEY)
+prompt = ChatPromptTemplate.from_messages([("system", researcher_prompt)])
+parser = StrOutputParser()
 
-    """"
-    workflow of the researcher agent/validate --> to clean and make as dict
+# Full chain: Prompt → LLM → Parser
+chain = prompt | llm | parser
 
-    execute()
-   ↓
-    llm.inference() → returns raw string from Gemini
-    ↓
-    validate_responses() (decorated)
-    ↓
-    validate_responses parses string → makes it dict
-    ↓
-    validate_response() checks keys & cleans output
-    ↓
-    returns clean, valid response dict or False
 
-    """
+@validate_responses
+def validate_response(response: str) -> dict | bool:
+    """Ensure response contains required fields."""
+    if "queries" not in response and "ask_user" not in response:
+        return False
+    return {
+        "queries": response["queries"],
+        "ask_user": response["ask_user"]
+    }
+
+
+@retry_wrapper
+def execute(step_by_step_plan: str, contextual_keywords: List[str], project_name: str) -> dict | bool:
+    """Run the research pipeline."""
+    contextual_keywords_str = ", ".join(map(lambda k: k.capitalize(), contextual_keywords))
+
+    response = chain.invoke({
+        "step_by_step_plan": step_by_step_plan,
+        "contextual_keywords": contextual_keywords_str
+    })
+
+    valid_response = validate_response(response)
+    return valid_response
+
+
+def search_online(query: str) -> str | None:
+    """Perform a DuckDuckGo search and return the first result link."""
+    try:
+        search_engine.search(query)
+        return search_engine.get_first_link()
+    except Exception as e:
+        print(f"Search failed: {e}")
+        return None
+
+
+"""
+Workflow (function-based):
+
+execute()
+↓
+llm.inference() → returns raw string from Gemini
+↓
+validate_responses() decorator → parses string → makes dict
+↓
+validate_response() checks keys & cleans output
+↓
+returns clean, valid response dict or False
+"""
 
 
 if __name__ == "__main__":
     # Step-by-step plan for which you want queries generated
     step_by_step_plan = """
-    1. Research the best ways to integrate Gemini API with LangChain.
-    2. Explore how to use DuckDuckGo search for custom agents.
-    3. Find methods to handle rate limits for API calls efficiently.
+    1. Set up the basic project structure: Create a `todo.py` file for the main application logic and a `tasks.txt` file to store the to-do items.
+    2. Implement the `add_task` function: This function should take a task description as input, append it to the `tasks.txt` file, and print a confirmation message.
+
+    3.  Implement the `add_task` function: This function should take a task description as input, append it to the `tasks.txt` file, and print a confirmation message.
     """
 
     # Contextual keywords to guide query optimization
-    contextual_keywords = ["LangChain", "Gemini API", "DuckDuckGo", "Python", "Rate limiting"]
+    contextual_keywords = [
+    "Python",
+    "File Handling",
+    "To-do List",
+    "Task Management",
+    "Command Line App",
+    "Functions",
+    "File I/O",
+    "Persistence",
+    "Text File Storage",
+    "Beginner Python Project"
+]
 
-    # Instantiate the Researcher agent
-    agent = Researcher(model_id="gemini-2.0-flash")
-
-    # Run the agent
-    response = agent.execute(
+    # Run the research pipeline
+    response = execute(
         step_by_step_plan=step_by_step_plan,
         contextual_keywords=contextual_keywords,
         project_name="TestResearch"
