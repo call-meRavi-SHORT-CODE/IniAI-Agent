@@ -30,7 +30,7 @@ Respond strictly in the following JSON format:
 {
 "queries": ["<QUERY 1>", "<QUERY 2>", "<QUERY 3>", ...],
 "ask_user": "<QUESTION FOR USER IF NEEDED, OTHERWISE EMPTY STRING>"
-}
+}5  
 
 makefile
 Copy code
@@ -147,6 +147,7 @@ if __name__ == "__main__":
     "Text File Storage",
     "Beginner Python Project"
 ]
+
 
     # Run the research pipeline
     response = execute(
